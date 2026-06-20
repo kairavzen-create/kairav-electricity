@@ -1,1 +1,1226 @@
-<h1>Coming soon</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meter Tracker</title>
+
+  <!-- Firebase compat SDKs (no bundler required) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* =====================================================
+       RESET & BASE
+    ===================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f172a;
+      --surface:    #1e293b;
+      --surface-hi: #253347;
+      --border:     #334155;
+      --text:       #f1f5f9;
+      --text-sub:   #94a3b8;
+      --text-muted: #475569;
+      --green:      #22c55e;
+      --green-bg:   rgba(34,197,94,0.12);
+      --amber:      #f59e0b;
+      --amber-bg:   rgba(245,158,11,0.12);
+      --red:        #ef4444;
+      --red-bg:     rgba(239,68,68,0.12);
+      --blue:       #60a5fa;
+      --blue-dim:   rgba(96,165,250,0.15);
+      --radius:     12px;
+      --radius-sm:  8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* =====================================================
+       LOGIN SCREEN
+    ===================================================== */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.25rem;
+    }
+
+    .login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .login-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 0.4rem;
+    }
+
+    .login-box h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 1.75rem;
+    }
+
+    #session-banner {
+      background: var(--red-bg);
+      border: 1px solid var(--red);
+      color: var(--red);
+      font-size: 0.8rem;
+      padding: 0.55rem 0.8rem;
+      border-radius: var(--radius-sm);
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* =====================================================
+       FORMS (shared)
+    ===================================================== */
+    .form-group { margin-bottom: 1rem; }
+
+    label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"] {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+
+    input:focus { border-color: var(--blue); }
+
+    input::placeholder { color: var(--text-muted); }
+
+    /* Date/time inputs colour-scheme for dark mode */
+    input[type="date"],
+    input[type="time"] { color-scheme: dark; }
+
+    .error-text {
+      color: var(--red);
+      font-size: 0.8rem;
+      margin-top: 0.3rem;
+    }
+
+    .success-text {
+      color: var(--green);
+      font-size: 0.8rem;
+    }
+
+    /* =====================================================
+       BUTTONS
+    ===================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.55rem 1.1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:active { opacity: 0.75; }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #0f172a;
+      width: 100%;
+      padding: 0.7rem;
+      font-size: 0.95rem;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-sub);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-outline:hover { background: var(--surface-hi); color: var(--text); }
+
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+
+    .btn-save {
+      background: var(--blue-dim);
+      color: var(--blue);
+      border: 1.5px solid transparent;
+    }
+
+    .btn-save:hover { background: var(--blue); color: #0f172a; }
+
+    /* =====================================================
+       APP LAYOUT
+    ===================================================== */
+    #app {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* =====================================================
+       HEADER
+    ===================================================== */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .header-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .active-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--blue-dim);
+      color: var(--blue);
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+    }
+
+    .header-actions { display: flex; gap: 0.4rem; align-items: center; }
+
+    /* =====================================================
+       STATUS CARDS
+    ===================================================== */
+    .cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    @media (max-width: 460px) {
+      .cards-row { grid-template-columns: 1fr; }
+    }
+
+    .status-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .status-card.is-active {
+      border-color: var(--blue);
+    }
+
+    .status-card.is-red {
+      border-color: var(--red);
+      animation: pulse-red 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      50%       { box-shadow: 0 0 12px 2px rgba(239,68,68,0.25); }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+    }
+
+    .active-tag {
+      font-size: 0.6rem;
+      font-weight: 800;
+      background: var(--blue);
+      color: #0f172a;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .units-number {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.1rem;
+    }
+
+    .units-sub {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.65rem;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .status-row-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      min-width: 56px;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .badge-green   { background: var(--green-bg); color: var(--green); }
+    .badge-amber   { background: var(--amber-bg); color: var(--amber); }
+    .badge-red     { background: var(--red-bg);   color: var(--red);   }
+    .badge-muted   { background: rgba(148,163,184,0.1); color: var(--text-muted); font-size: 0.6rem; }
+
+    .projected-note {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .cycle-footer {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.65rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* =====================================================
+       SWITCH ALERT
+    ===================================================== */
+    #switch-alert {
+      background: var(--red-bg);
+      border: 2px solid var(--red);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 0.75rem;
+      display: none;
+      text-align: center;
+    }
+
+    .alert-headline {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--red);
+      letter-spacing: 0.02em;
+    }
+
+    .alert-sub {
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      margin-top: 0.15rem;
+    }
+
+    /* =====================================================
+       SECTION CARDS
+    ===================================================== */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin-bottom: 0.9rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 460px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.9rem;
+      flex-wrap: wrap;
+    }
+
+    /* =====================================================
+       HISTORY TABLE
+    ===================================================== */
+    .table-wrap { overflow-x: auto; }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .history-table th {
+      text-align: left;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-table td {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--surface-hi);
+      color: var(--text-sub);
+    }
+
+    .history-table tr:last-child td { border-bottom: none; }
+
+    .history-table td:nth-child(3),
+    .history-table td:nth-child(4) {
+      color: var(--text);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-cell {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    /* =====================================================
+       SETTINGS NOTE
+    ===================================================== */
+    .settings-note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .field-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* =====================================================
+       SWITCH PROMPT (post-switch message)
+    ===================================================== */
+    #switch-prompt {
+      background: var(--blue-dim);
+      border: 1px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 0.7rem 1rem;
+      font-size: 0.82rem;
+      color: var(--blue);
+      margin-bottom: 0.75rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- =========================================================
+     LOGIN SCREEN
+========================================================= -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-eyebrow">Ludhiana · PSPCL</div>
+    <h1>Meter Tracker</h1>
+
+    <div id="session-banner"></div>
+
+    <div class="form-group">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label for="login-password">Password</label>
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="error-text" style="margin-bottom:0.75rem;min-height:1.1rem;"></div>
+    <button class="btn btn-primary" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<!-- =========================================================
+     MAIN APP
+========================================================= -->
+<div id="app" style="display:none;">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">Meter Tracker</div>
+    <div id="active-pill" class="active-pill"></div>
+    <div class="header-actions">
+      <button class="btn btn-outline btn-sm" onclick="switchMeter()">Switch</button>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Status Cards -->
+  <div class="cards-row">
+    <div id="card-a" class="status-card"></div>
+    <div id="card-b" class="status-card"></div>
+  </div>
+
+  <!-- Switch Alert -->
+  <div id="switch-alert">
+    <div class="alert-headline">Switch meters now</div>
+    <div class="alert-sub">Active meter has crossed the action threshold.</div>
+  </div>
+
+  <!-- Post-switch prompt -->
+  <div id="switch-prompt">
+    Switched. Log a reading now to set an accurate baseline for the new active meter.
+  </div>
+
+  <!-- Log Entry Form -->
+  <div class="section">
+    <div class="section-title">Log a Reading</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="entry-date">Date</label>
+        <input type="date" id="entry-date">
+      </div>
+      <div class="form-group">
+        <label for="entry-time">Time</label>
+        <input type="time" id="entry-time">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="entry-meter-a">Meter A Reading</label>
+        <input type="number" id="entry-meter-a" placeholder="e.g. 4975" step="0.1" min="0">
+      </div>
+      <div class="form-group">
+        <label for="entry-meter-b">Meter B Reading</label>
+        <input type="number" id="entry-meter-b" placeholder="e.g. 24150" step="0.1" min="0">
+      </div>
+    </div>
+    <div id="form-error" class="error-text" style="min-height:1.1rem;"></div>
+    <div class="form-actions">
+      <button class="btn btn-save" onclick="submitReading()">Save Reading</button>
+    </div>
+  </div>
+
+  <!-- Reading History -->
+  <div class="section">
+    <div class="section-title">Reading History</div>
+    <div class="table-wrap">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Meter A</th>
+            <th>Meter B</th>
+            <th>Active</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="5" class="empty-cell">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="section">
+    <div class="section-title">Settings</div>
+    <p class="settings-note">Update cycle dates at the start of each new billing period. For Meter B, always update the opening baseline at the same time.</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="s-meter-a-start">Meter A Cycle Start</label>
+        <input type="date" id="s-meter-a-start">
+        <div class="field-hint">Auto-advances on the 1st of each month.</div>
+      </div>
+      <div class="form-group">
+        <label for="s-meter-b-start">Meter B Cycle Start</label>
+        <input type="date" id="s-meter-b-start">
+        <div class="field-hint">Update manually every 2 months (26th).</div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:0.25rem;">
+      <label for="s-meter-b-baseline">Meter B Opening Baseline (units)</label>
+      <input type="number" id="s-meter-b-baseline" placeholder="e.g. 23928" step="0.1" min="0">
+      <div class="field-hint">Exact meter reading from the physical meter or PSPCL bill on cycle start day. Clear this field to use automatic lookup.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-save" onclick="saveSettings()">Save Settings</button>
+      <span id="settings-saved" class="success-text"></span>
+    </div>
+  </div>
+
+</div><!-- end #app -->
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+<script>
+
+  // ==============================================================
+  // FIREBASE INIT
+  // ==============================================================
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCnd1Au_Ibgp7eYCxFsKdbgWZn_4m-nO8k",
+    authDomain:        "kairav-electricity.firebaseapp.com",
+    projectId:         "kairav-electricity",
+    storageBucket:     "kairav-electricity.firebasestorage.app",
+    messagingSenderId: "241911155581",
+    appId:             "1:241911155581:web:20743cbeb5cc5bc492da14",
+    measurementId:     "G-RH5TPSX5NW"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  // ==============================================================
+  // APP STATE
+  // ==============================================================
+  let appConfig    = null;
+  let allReadings  = [];
+
+  // ==============================================================
+  // TIMEZONE HELPERS (all IST, all explicit)
+  // ==============================================================
+
+  function getTodayIST() {
+    // Returns YYYY-MM-DD in Asia/Kolkata timezone
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  }
+
+  function getNowTimeIST() {
+    // Returns HH:MM in Asia/Kolkata timezone
+    return new Date().toLocaleTimeString('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour:     '2-digit',
+      minute:   '2-digit',
+      hour12:   false
+    });
+  }
+
+  function dateDiffDays(dateStrA, dateStrB) {
+    // Days from dateStrA to dateStrB (YYYY-MM-DD strings, treated as local calendar dates)
+    const [aY, aM, aD] = dateStrA.split('-').map(Number);
+    const [bY, bM, bD] = dateStrB.split('-').map(Number);
+    const a = new Date(aY, aM - 1, aD);
+    const b = new Date(bY, bM - 1, bD);
+    return Math.round((b - a) / (1000 * 60 * 60 * 24));
+  }
+
+  // ==============================================================
+  // AUTH
+  // ==============================================================
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      restorePreservedFormValues();
+      initApp();
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+      showSessionBanner();
+    }
+  });
+
+  function showSessionBanner() {
+    const msg = sessionStorage.getItem('auth_error_message');
+    if (msg) {
+      const el = document.getElementById('session-banner');
+      el.textContent = msg;
+      el.style.display = 'block';
+      sessionStorage.removeItem('auth_error_message');
+    }
+  }
+
+  function restorePreservedFormValues() {
+    const a = sessionStorage.getItem('preserved_meter_a');
+    const b = sessionStorage.getItem('preserved_meter_b');
+    if (a) { document.getElementById('entry-meter-a').value = a; sessionStorage.removeItem('preserved_meter_a'); }
+    if (b) { document.getElementById('entry-meter-b').value = b; sessionStorage.removeItem('preserved_meter_b'); }
+  }
+
+  async function login() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    errEl.textContent = '';
+
+    if (!email || !password) {
+      errEl.textContent = 'Enter email and password.';
+      return;
+    }
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch {
+      errEl.textContent = 'Wrong email or password.';
+    }
+  }
+
+  function logout() {
+    auth.signOut();
+  }
+
+  // Enter key triggers login from login screen
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+      login();
+    }
+  });
+
+  // ==============================================================
+  // APP INIT
+  // ==============================================================
+  async function initApp() {
+    await loadConfig();
+    await checkMeterACycleAdvance();
+    await loadReadings();
+    render();
+    setFormDefaults();
+  }
+
+  function setFormDefaults() {
+    const dateEl = document.getElementById('entry-date');
+    const timeEl = document.getElementById('entry-time');
+    // Only set if not already pre-filled by restored values
+    if (!dateEl.value) dateEl.value = getTodayIST();
+    if (!timeEl.value) timeEl.value = getNowTimeIST();
+  }
+
+  // ==============================================================
+  // CONFIG
+  // ==============================================================
+  async function loadConfig() {
+    try {
+      const doc = await db.collection('config').doc('settings').get();
+      if (!doc.exists) {
+        // Seed initial config with PRD values
+        const initial = {
+          active_meter:             'A',
+          meter_a_cycle_start:      '2026-06-01',
+          meter_b_cycle_start:      '2026-04-26',
+          meter_b_opening_baseline: 23928
+        };
+        try {
+          await db.collection('config').doc('settings').set(initial);
+        } catch (err) {
+          handleWriteError(err);
+          return;
+        }
+        appConfig = initial;
+      } else {
+        appConfig = doc.data();
+      }
+    } catch (err) {
+      handleWriteError(err);
+    }
+  }
+
+  async function checkMeterACycleAdvance() {
+    // On every page load: if calendar month has advanced past stored cycle start, auto-update Firestore
+    const today = getTodayIST();
+    const [year, month]           = today.split('-').map(Number);
+    const [storedYear, storedMonth] = appConfig.meter_a_cycle_start.split('-').map(Number);
+
+    if (year > storedYear || (year === storedYear && month > storedMonth)) {
+      const newStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      try {
+        await db.collection('config').doc('settings').update({ meter_a_cycle_start: newStart });
+      } catch (err) {
+        handleWriteError(err);
+        return;
+      }
+      appConfig.meter_a_cycle_start = newStart;
+    }
+  }
+
+  // ==============================================================
+  // READINGS
+  // ==============================================================
+  async function loadReadings() {
+    try {
+      const snapshot = await db.collection('readings')
+        .orderBy('date', 'desc')
+        .orderBy('time', 'desc')
+        .get();
+      allReadings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+      console.error('Failed to load readings:', err);
+      allReadings = [];
+    }
+  }
+
+  // ==============================================================
+  // BASELINE CALCULATIONS
+  // ==============================================================
+
+  function getMeterABaseline() {
+    const cycleStart = appConfig.meter_a_cycle_start;
+
+    // Primary: last reading strictly before cycle start date
+    const sorted = [...allReadings].sort((a, b) =>
+      b.date.localeCompare(a.date) || b.time.localeCompare(a.time)
+    );
+    const before = sorted.filter(r => r.date < cycleStart);
+    if (before.length > 0) return before[0].meter_a_reading;
+
+    // Fallback: earliest reading on or after cycle start
+    const after = [...allReadings]
+      .filter(r => r.date >= cycleStart)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    if (after.length > 0) return after[0].meter_a_reading;
+
+    return null;
+  }
+
+  function getMeterBBaseline() {
+    // Priority 1: manual baseline stored in config (beats any DB lookup)
+    if (appConfig.meter_b_opening_baseline !== null &&
+        appConfig.meter_b_opening_baseline !== undefined) {
+      return appConfig.meter_b_opening_baseline;
+    }
+
+    // Priority 2: earliest reading on or after cycle start (forward-looking, prevents ghost inflation)
+    const cycleStart = appConfig.meter_b_cycle_start;
+    const after = [...allReadings]
+      .filter(r => r.date >= cycleStart)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    if (after.length > 0) return after[0].meter_b_reading;
+
+    return null;
+  }
+
+  // ==============================================================
+  // CYCLE HELPERS
+  // ==============================================================
+
+  function getMeterACycleReadings() {
+    return allReadings.filter(r => r.date >= appConfig.meter_a_cycle_start);
+  }
+
+  function getMeterBCycleReadings() {
+    return allReadings.filter(r => r.date >= appConfig.meter_b_cycle_start);
+  }
+
+  function getLatestReading(meter) {
+    const cycleReadings = meter === 'A' ? getMeterACycleReadings() : getMeterBCycleReadings();
+    const sorted = [...cycleReadings].sort((a, b) =>
+      b.date.localeCompare(a.date) || b.time.localeCompare(a.time)
+    );
+    if (sorted.length === 0) return null;
+    return meter === 'A' ? sorted[0].meter_a_reading : sorted[0].meter_b_reading;
+  }
+
+  function getMeterACycleEnd() {
+    const [year, month] = appConfig.meter_a_cycle_start.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate(); // month = 1-indexed, Date(y, m, 0) = last day of month m-1
+    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  }
+
+  function getMeterBCycleEnd() {
+    const [year, month] = appConfig.meter_b_cycle_start.split('-').map(Number);
+    let nextMonth = month + 2;
+    let nextYear  = year;
+    if (nextMonth > 12) { nextMonth -= 12; nextYear += 1; }
+    // Cycle end = one day before next cycle start (26th of nextMonth)
+    const nextStart = new Date(nextYear, nextMonth - 1, 26);
+    const end = new Date(nextStart);
+    end.setDate(end.getDate() - 1);
+    const ey = end.getFullYear();
+    const em = String(end.getMonth() + 1).padStart(2, '0');
+    const ed = String(end.getDate()).padStart(2, '0');
+    return `${ey}-${em}-${ed}`;
+  }
+
+  // ==============================================================
+  // STATUS CALCULATION (core engine)
+  // ==============================================================
+  function calculateMeterStatus(meter) {
+    const today        = getTodayIST();
+    const cycleStart   = meter === 'A' ? appConfig.meter_a_cycle_start : appConfig.meter_b_cycle_start;
+    const cycleEnd     = meter === 'A' ? getMeterACycleEnd() : getMeterBCycleEnd();
+    const baseline     = meter === 'A' ? getMeterABaseline()  : getMeterBBaseline();
+    const cycleReadings = meter === 'A' ? getMeterACycleReadings() : getMeterBCycleReadings();
+    const latestReading = getLatestReading(meter);
+
+    const daysElapsed   = Math.max(dateDiffDays(cycleStart, today), 0);
+    const daysRemaining = Math.max(dateDiffDays(today, cycleEnd), 0);
+
+    // Units used (always calculated when possible, even if < 2 readings)
+    const unitsUsed = (baseline !== null && latestReading !== null)
+      ? Math.max(latestReading - baseline, 0)
+      : null;
+
+    const hasEnoughData = unitsUsed !== null && cycleReadings.length >= 2;
+
+    if (!hasEnoughData) {
+      return { unitsUsed, currentStatus: 'no-data', currentLabel: 'Not enough data',
+               projectedTotal: null, projectedStatus: 'no-data', projectedLabel: 'Not enough data',
+               daysElapsed, daysRemaining, cycleEnd };
+    }
+
+    // ---- Current usage thresholds ----
+    let currentStatus, currentLabel;
+    if (meter === 'A') {
+      if (unitsUsed < 240)      { currentStatus = 'green'; currentLabel = 'Green'; }
+      else if (unitsUsed < 270) { currentStatus = 'amber'; currentLabel = 'Amber'; }
+      else                      { currentStatus = 'red';   currentLabel = 'Red';   }
+    } else {
+      if (unitsUsed < 500)      { currentStatus = 'green'; currentLabel = 'Green'; }
+      else if (unitsUsed < 550) { currentStatus = 'amber'; currentLabel = 'Amber'; }
+      else                      { currentStatus = 'red';   currentLabel = 'Red';   }
+    }
+
+    // ---- Projected usage ----
+    let projectedTotal = null, projectedStatus, projectedLabel;
+
+    if (daysElapsed < 5) {
+      // Early cycle buffer: suppress projection
+      projectedStatus = 'calculating';
+      projectedLabel  = 'Calculating trajectory...';
+    } else {
+      const dailyRate  = unitsUsed / Math.max(daysElapsed, 1); // guard: max(1) prevents div-by-zero
+      projectedTotal   = unitsUsed + (dailyRate * daysRemaining);
+
+      if (meter === 'A') {
+        if (projectedTotal < 220)      { projectedStatus = 'green'; projectedLabel = 'Green'; }
+        else if (projectedTotal < 270) { projectedStatus = 'amber'; projectedLabel = 'Amber'; }
+        else                           { projectedStatus = 'red';   projectedLabel = 'Red';   }
+      } else {
+        if (projectedTotal < 500)      { projectedStatus = 'green'; projectedLabel = 'Green'; }
+        else if (projectedTotal < 550) { projectedStatus = 'amber'; projectedLabel = 'Amber'; }
+        else                           { projectedStatus = 'red';   projectedLabel = 'Red';   }
+      }
+    }
+
+    return { unitsUsed, currentStatus, currentLabel,
+             projectedTotal, projectedStatus, projectedLabel,
+             daysElapsed, daysRemaining, cycleEnd };
+  }
+
+  // ==============================================================
+  // RENDER
+  // ==============================================================
+  function render() {
+    if (!appConfig) return;
+
+    const statA     = calculateMeterStatus('A');
+    const statB     = calculateMeterStatus('B');
+    const activeMeter = appConfig.active_meter;
+
+    renderHeader(activeMeter);
+    renderCard('card-a', 'A', statA, activeMeter === 'A');
+    renderCard('card-b', 'B', statB, activeMeter === 'B');
+    renderSwitchAlert(statA, statB, activeMeter);
+    renderHistory();
+    renderSettings();
+  }
+
+  function renderHeader(activeMeter) {
+    document.getElementById('active-pill').textContent = `Meter ${activeMeter} active`;
+  }
+
+  function badge(status, label) {
+    const cls = { green: 'badge-green', amber: 'badge-amber', red: 'badge-red',
+                  calculating: 'badge-muted', 'no-data': 'badge-muted' };
+    return `<span class="badge ${cls[status] || 'badge-muted'}">${label}</span>`;
+  }
+
+  function renderCard(elId, meter, stat, isActive) {
+    const el = document.getElementById(elId);
+
+    // Card border state: active meter's status drives the border
+    el.className = 'status-card';
+    if (isActive && (stat.currentStatus === 'red' || stat.projectedStatus === 'red')) {
+      el.classList.add('is-red');
+    } else if (isActive) {
+      el.classList.add('is-active');
+    }
+
+    const unitsHtml = stat.unitsUsed !== null
+      ? `<div class="units-number">${Math.round(stat.unitsUsed)}</div>
+         <span class="units-sub">units used this cycle</span>`
+      : `<div class="units-number" style="font-size:1.5rem;color:var(--text-muted);">--</div>
+         <span class="units-sub">no data yet</span>`;
+
+    const projNote = stat.projectedTotal !== null
+      ? `<span class="projected-note">${Math.round(stat.projectedTotal)} projected</span>`
+      : '';
+
+    el.innerHTML = `
+      <div class="card-header">
+        <span class="card-label">Meter ${meter}</span>
+        ${isActive ? '<span class="active-tag">Active</span>' : ''}
+      </div>
+      ${unitsHtml}
+      <div class="status-row">
+        <span class="status-row-label">Current</span>
+        ${badge(stat.currentStatus, stat.currentLabel)}
+      </div>
+      <div class="status-row">
+        <span class="status-row-label">Projected</span>
+        ${badge(stat.projectedStatus, stat.projectedLabel)}
+        ${projNote}
+      </div>
+      <div class="cycle-footer">
+        Ends ${stat.cycleEnd} &middot; ${stat.daysRemaining} days left
+      </div>
+    `;
+  }
+
+  function renderSwitchAlert(statA, statB, activeMeter) {
+    const active = activeMeter === 'A' ? statA : statB;
+    const alertEl = document.getElementById('switch-alert');
+    alertEl.style.display =
+      (active.currentStatus === 'red' || active.projectedStatus === 'red') ? 'block' : 'none';
+  }
+
+  function renderHistory() {
+    const tbody = document.getElementById('history-body');
+    if (allReadings.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">No readings yet. Log your first entry above.</td></tr>';
+      return;
+    }
+    const sorted = [...allReadings].sort((a, b) =>
+      b.date.localeCompare(a.date) || b.time.localeCompare(a.time)
+    );
+    tbody.innerHTML = sorted.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.time}</td>
+        <td>${r.meter_a_reading}</td>
+        <td>${r.meter_b_reading}</td>
+        <td>Meter ${r.active_meter}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderSettings() {
+    document.getElementById('s-meter-a-start').value    = appConfig.meter_a_cycle_start;
+    document.getElementById('s-meter-b-start').value    = appConfig.meter_b_cycle_start;
+    const bl = appConfig.meter_b_opening_baseline;
+    document.getElementById('s-meter-b-baseline').value = (bl !== null && bl !== undefined) ? bl : '';
+  }
+
+  // ==============================================================
+  // SWITCH ACTIVE METER
+  // ==============================================================
+  async function switchMeter() {
+    const newMeter = appConfig.active_meter === 'A' ? 'B' : 'A';
+    try {
+      await db.collection('config').doc('settings').update({ active_meter: newMeter });
+    } catch (err) {
+      handleWriteError(err);
+      return;
+    }
+    appConfig.active_meter = newMeter;
+    render();
+
+    // Show prompt to log a reading for accurate baseline
+    const prompt = document.getElementById('switch-prompt');
+    prompt.style.display = 'block';
+    setTimeout(() => { prompt.style.display = 'none'; }, 6000);
+  }
+
+  // ==============================================================
+  // LOG ENTRY (submit reading)
+  // ==============================================================
+  async function submitReading() {
+    const date      = document.getElementById('entry-date').value;
+    const time      = document.getElementById('entry-time').value;
+    const meterAStr = document.getElementById('entry-meter-a').value.trim();
+    const meterBStr = document.getElementById('entry-meter-b').value.trim();
+    const errEl     = document.getElementById('form-error');
+    errEl.textContent = '';
+
+    // Validation
+    if (!date || !time || meterAStr === '' || meterBStr === '') {
+      errEl.textContent = 'All four fields are required.';
+      return;
+    }
+
+    const meterAReading = parseFloat(meterAStr);
+    const meterBReading = parseFloat(meterBStr);
+
+    if (isNaN(meterAReading) || isNaN(meterBReading)) {
+      errEl.textContent = 'Meter readings must be valid numbers.';
+      return;
+    }
+
+    // Anomaly detection: active meter only
+    const activeMeter   = appConfig.active_meter;
+    const activeReading = activeMeter === 'A' ? meterAReading : meterBReading;
+
+    const sortedAll = [...allReadings].sort((a, b) =>
+      b.date.localeCompare(a.date) || b.time.localeCompare(a.time)
+    );
+    const prevReading = sortedAll.length > 0
+      ? (activeMeter === 'A' ? sortedAll[0].meter_a_reading : sortedAll[0].meter_b_reading)
+      : null;
+
+    if (prevReading !== null && (activeReading - prevReading) >= 50) {
+      const diff = Math.round(activeReading - prevReading);
+      const ok = confirm(`Meter ${activeMeter} reading is ${diff} units higher than last time. Are you sure?`);
+      if (!ok) return;
+    }
+
+    // Save to Firestore
+    const entry = {
+      date,
+      time,
+      meter_a_reading: meterAReading,
+      meter_b_reading: meterBReading,
+      active_meter:    appConfig.active_meter,
+      created_at:      firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      await db.collection('readings').add(entry);
+    } catch (err) {
+      handleWriteError(err);
+      return;
+    }
+
+    // Reset form
+    document.getElementById('entry-date').value    = getTodayIST();
+    document.getElementById('entry-time').value    = getNowTimeIST();
+    document.getElementById('entry-meter-a').value = '';
+    document.getElementById('entry-meter-b').value = '';
+    errEl.textContent = '';
+
+    await loadReadings();
+    render();
+  }
+
+  // ==============================================================
+  // SETTINGS SAVE
+  // ==============================================================
+  async function saveSettings() {
+    const meterAStart   = document.getElementById('s-meter-a-start').value;
+    const meterBStart   = document.getElementById('s-meter-b-start').value;
+    const baselineStr   = document.getElementById('s-meter-b-baseline').value.trim();
+
+    if (!meterAStart || !meterBStart) {
+      alert('Cycle start dates cannot be empty.');
+      return;
+    }
+
+    const updates = {
+      meter_a_cycle_start:      meterAStart,
+      meter_b_cycle_start:      meterBStart,
+      meter_b_opening_baseline: baselineStr !== '' ? parseFloat(baselineStr) : null
+    };
+
+    try {
+      await db.collection('config').doc('settings').update(updates);
+    } catch (err) {
+      handleWriteError(err);
+      return;
+    }
+
+    appConfig = { ...appConfig, ...updates };
+    render();
+
+    const savedEl = document.getElementById('settings-saved');
+    savedEl.textContent = 'Saved.';
+    setTimeout(() => { savedEl.textContent = ''; }, 3000);
+  }
+
+  // ==============================================================
+  // WRITE ERROR HANDLER
+  // Preserves form values, redirects to login with a message
+  // ==============================================================
+  function handleWriteError(err) {
+    console.error('Firestore write error:', err);
+    const a = document.getElementById('entry-meter-a')?.value;
+    const b = document.getElementById('entry-meter-b')?.value;
+    if (a) sessionStorage.setItem('preserved_meter_a', a);
+    if (b) sessionStorage.setItem('preserved_meter_b', b);
+    sessionStorage.setItem('auth_error_message',
+      'Session expired. Please log in again to save your reading.');
+    auth.signOut();
+  }
+
+</script>
+</body>
+</html>
