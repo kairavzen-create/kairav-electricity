@@ -818,11 +818,10 @@
   // READINGS
   // ==============================================================
   async function loadReadings() {
+    // No orderBy in the Firestore query - composite indexes are not auto-created.
+    // All sorting is handled in JavaScript after the fetch.
     try {
-      const snapshot = await db.collection('readings')
-        .orderBy('date', 'desc')
-        .orderBy('time', 'desc')
-        .get();
+      const snapshot = await db.collection('readings').get();
       allReadings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.error('Failed to load readings:', err);
